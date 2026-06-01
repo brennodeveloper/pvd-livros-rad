@@ -62,6 +62,24 @@ def create_db():
         )
     """)
 
+    cursor.execute("""
+    INSERT OR IGNORE INTO categorias (id_categoria, nome_categoria)
+    VALUES
+    (1, 'Romance'),
+    (2, 'Aventura'),
+    (3, 'Tecnologia'),
+    (4, 'Terror')
+    """)
+    
+    cursor.execute("""
+        INSERT OR IGNORE INTO livros
+        (codigo_isbn, titulo, descricao, imagem_capa, autor, preco, qtd_estoque, num_paginas, id_categoria)
+        VALUES
+        ('123456789', 'Dom Casmurro', 'Clássico da literatura brasileira.', NULL, 'Machado de Assis', 39.90, 10, 256, 1),
+        ('978741852', '1984', 'Distopia política e social.', NULL, 'George Orwell', 45.50, 8, 300, 4),
+        ('978963852', 'O Hobbit', 'Aventura fantástica na Terra Média.', NULL, 'J.R.R. Tolkien', 59.90, 5, 320, 2),
+        ('978111222', 'Clean Code', 'Livro sobre boas práticas de programação.', NULL, 'Robert C. Martin', 89.90, 6, 464, 3)
+    """)
     conexao.commit()
     conexao.close()
 
