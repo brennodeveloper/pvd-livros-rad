@@ -1,3 +1,7 @@
 _pycache___pycache__/
 *.pyc
 *.pyo
+
+# Ignore virtual environment directories
+venv/
+env/

@@ -1,7 +1,8 @@
 import customtkinter as ctk
 from tkinter import messagebox
 
-from components.buttons import BackButton
+from components.navbar import NavBar
+from components.footer import Footer
 from db.livros_repository import inserir_livro
 
 
@@ -9,6 +10,7 @@ class CadastroScreen(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.parent = parent
         self.pack(fill="both", expand=True)
 
         self.categorias = {
@@ -21,19 +23,18 @@ class CadastroScreen(ctk.CTkFrame):
         self.criar_layout()
 
     def criar_layout(self):
-        # Botão de voltar
-        BackButton(
+        NavBar(
             self,
-            command=self.voltar_inicio
-        ).pack(anchor="nw", padx=15, pady=10)
-
-        # Cabeçalho
-        titulo = ctk.CTkLabel(
-            self,
-            text="📚 LIVRARIA PDV",
-            font=("Arial", 30, "bold")
+            title="Livraria PDV — Cadastro",
+            operator="OP: ADMIN",
+            back_command=self.voltar_inicio
         )
-        titulo.pack(pady=(5, 15))
+    
+        Footer(
+            self,
+            shortcuts=("F1 Ajuda", "F2 Limpar", "F3 Salvar", "ESC Voltar"),
+            status_text="CADASTRO PRONTO"
+        )
 
         # Frame principal
         frame = ctk.CTkFrame(self, corner_radius=10)
@@ -236,5 +237,4 @@ class CadastroScreen(ctk.CTkFrame):
         self.combo_categoria.set("Romance")
 
     def voltar_inicio(self):
-        print("Voltando para a tela inicial...")
-        self.destroy()
+        self.parent.voltar_tela()

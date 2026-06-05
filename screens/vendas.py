@@ -1,5 +1,7 @@
 import customtkinter as ctk
-from components.buttons import BackButton
+from components.navbar import NavBar
+from components.footer import Footer
+
 from db.livros_repository import buscar_livro_por_isbn
 from db.vendas_repository import registrar_venda
 
@@ -8,6 +10,7 @@ class VendaScreen(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.parent = parent
         self.pack(fill="both", expand=True)
 
         self.carrinho = []
@@ -16,13 +19,21 @@ class VendaScreen(ctk.CTkFrame):
         self.criar_layout()
 
     def criar_layout(self):
-        container = ctk.CTkFrame(self)
-        container.pack(fill="both", expand=True, padx=15, pady=15)
-
-        BackButton(
+        NavBar(
             self,
-            command=self.voltar_inicio
-        ).pack(anchor="nw", padx=15, pady=10)
+            title="Livraria PDV — Vendas",
+            operator="OP: ADMIN",
+            back_command=self.voltar_inicio
+        )
+
+        Footer(
+            self,
+            shortcuts=("F1 Ajuda", "F2 Item", "F4 Adicionar", "F8 Finalizar"),
+            status_text="SCANNER PRONTO"
+        )
+
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=15, pady=5)
 
         left_frame = ctk.CTkFrame(container)
         left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
@@ -33,13 +44,13 @@ class VendaScreen(ctk.CTkFrame):
 
         ctk.CTkLabel(
             left_frame,
-            text="📚 LIVRARIA PDV",
+            text="Itens da Venda",
             font=("Arial", 26, "bold")
         ).pack(pady=(20, 5))
 
         ctk.CTkLabel(
             left_frame,
-            text="Itens adicionados ao pedido",
+            text="Livros adicionados ao carrinho",
             font=("Arial", 14)
         ).pack(pady=(0, 20))
 
@@ -61,11 +72,11 @@ class VendaScreen(ctk.CTkFrame):
         )
         self.label_vazio.pack(pady=80)
 
-        footer = ctk.CTkFrame(left_frame)
-        footer.pack(fill="x", padx=15, pady=15)
+        qtd_box = ctk.CTkFrame(left_frame)
+        qtd_box.pack(fill="x", padx=15, pady=15)
 
         self.label_qtd_itens = ctk.CTkLabel(
-            footer,
+            qtd_box,
             text="Itens: 0",
             font=("Arial", 14, "bold")
         )
@@ -149,8 +160,7 @@ class VendaScreen(ctk.CTkFrame):
         self.btn_cancelar.pack(fill="x", padx=20, pady=(5, 20))
 
     def voltar_inicio(self):
-        print("Voltando para a tela inicial...")
-        self.destroy()
+        self.parent.voltar_tela()
 
     def adicionar_item(self):
         isbn = self.entry_isbn.get().strip()

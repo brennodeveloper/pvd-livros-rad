@@ -1,12 +1,16 @@
-"""
-PDV Livraria — Detalhes do Item
-Paleta: CustomTkinter dark theme (#242424 / #2b2b2b / azul CTk #1f6aa5)
-Requer: pip install customtkinter pillow
-"""
-
 import customtkinter as ctk
 from tkinter import messagebox
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw
+
+from components.navbar import NavBar
+from components.footer import Footer
+
+from db.livros_repository import (
+    buscar_livro_por_id,
+    atualizar_livro,
+    deletar_livro
+)
+
 
 # ---------- Paleta ----------
 BG = "#242424"
@@ -17,273 +21,496 @@ MUTED = "#a0a0a0"
 ACCENT = "#1f6aa5"
 ACCENT_HOVER = "#144870"
 GOOD = "#16a34a"
+DANGER = "#991b1b"
+DANGER_HOVER = "#7f1d1d"
 WARN = "#6b7280"
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
 
-# ---------- Dados ----------
-item = {
-    "sku": "LIV-0001-DCM",
-    "ean": "7891234567890",
-    "titulo": "Dom Casmurro",
-    "autor": "Machado de Assis",
-    "editora": "Páginas Edições",
-    "categoria": "Ficção / Clássicos",
-    "preco": 39.92,
-    "estoque": 14,
-}
+class DetalhesScreen(ctk.CTkFrame):
+    def __init__(self, parent, id_livro):
+        super().__init__(parent)
 
+        self.parent = parent
+        self.id_livro = id_livro
 
-class PdvApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("PDV — Livraria Páginas")
-        self.geometry("1100x720")
-        self.configure(fg_color=BG)
+        self.pack(fill="both", expand=True)
 
-        self.qtd = 1
-        self._build_topbar()
-        self._build_body()
-        self._build_footer()
-        self._bind_shortcuts()
+        self.categorias = {
+            "Romance": 1,
+            "Aventura": 2,
+            "Tecnologia": 3,
+            "Terror": 4
+        }
 
-    # ---------- Topbar ----------
-    def _build_topbar(self):
-        top = ctk.CTkFrame(self, fg_color=PANEL, border_color=BORDER,
-                           border_width=1, corner_radius=6, height=42)
-        top.pack(fill="x", padx=12, pady=(12, 6))
+        self.livro = buscar_livro_por_id(self.id_livro)
 
-        ctk.CTkButton(top, text="← Voltar", width=90, height=28,
-                      fg_color=BG, hover_color=BORDER, text_color=FG,
-                      border_color=BORDER, border_width=1,
-                      command=self._voltar).pack(side="left", padx=10, pady=8)
+        if self.livro is None:
+            messagebox.showerror("Erro", "Livro não encontrado.")
+            self.voltar_consulta()
+            return
 
-        ctk.CTkLabel(top, text=" PDV ", fg_color=ACCENT, text_color="white",
-                     font=("Arial", 12, "bold"),
-                     corner_radius=4).pack(side="left", padx=6)
+        self.criar_layout()
 
-        ctk.CTkLabel(top, text="Livraria Páginas — Caixa 02",
-                     text_color=MUTED).pack(side="left", padx=10)
+    def criar_layout(self):
+        NavBar(
+            self,
+            title="Livraria PDV — Detalhes do Livro",
+            operator="OP: ADMIN",
+            back_command=self.voltar_consulta
+        )
 
-        ctk.CTkLabel(top, text="● ONLINE", text_color=GOOD,
-                     font=("Consolas", 11, "bold")).pack(side="right", padx=10)
-        ctk.CTkLabel(top, text="22/05/2026 14:37  OP: ANA.M",
-                     text_color=MUTED,
-                     font=("Consolas", 11)).pack(side="right", padx=6)
+        Footer(
+            self,
+            shortcuts=("F1 Ajuda", "F2 Editar", "F3 Excluir", "F4 Salvar"),
+            status_text="ITEM CARREGADO"
+        )
 
-    # ---------- Body ----------
-    def _build_body(self):
         body = ctk.CTkFrame(self, fg_color=BG)
         body.pack(fill="both", expand=True, padx=12, pady=6)
+
         body.grid_columnconfigure(0, weight=14)
         body.grid_columnconfigure(1, weight=10)
         body.grid_rowconfigure(0, weight=1)
 
-        self._build_left(body)
-        self._build_right(body)
+        self.criar_lado_esquerdo(body)
+        self.criar_lado_direito(body)
 
-    def _build_left(self, parent):
-        left = ctk.CTkFrame(parent, fg_color=PANEL, border_color=BORDER,
-                            border_width=1, corner_radius=6)
+    def criar_lado_esquerdo(self, parent):
+        (
+            id_livro,
+            codigo_isbn,
+            titulo,
+            descricao,
+            imagem_capa,
+            autor,
+            preco,
+            qtd_estoque,
+            num_paginas,
+            id_categoria,
+            nome_categoria
+        ) = self.livro
+
+        left = ctk.CTkFrame(
+            parent,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=6
+        )
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
         header = ctk.CTkFrame(left, fg_color="transparent")
         header.pack(fill="x", padx=14, pady=(12, 6))
-        ctk.CTkLabel(header, text="[F2] DETALHES DO ITEM",
-                     text_color=MUTED,
-                     font=("Arial", 11, "bold")).pack(side="left")
-        ctk.CTkLabel(header, text=f"SKU: {item['sku']}",
-                     text_color=MUTED,
-                     font=("Consolas", 11)).pack(side="right")
+
+        ctk.CTkLabel(
+            header,
+            text="[F2] DETALHES DO ITEM",
+            text_color=MUTED,
+            font=("Arial", 11, "bold")
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            header,
+            text=f"ID: {id_livro}",
+            text_color=MUTED,
+            font=("Consolas", 11)
+        ).pack(side="right")
 
         content = ctk.CTkFrame(left, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=14, pady=10)
 
-        # Capa
-        cover_frame = ctk.CTkFrame(content, fg_color=BG,
-                                   border_color=BORDER, border_width=1,
-                                   corner_radius=4, width=150, height=210)
-        cover_frame.pack(side="left", padx=(0, 14))
+        # Capa / placeholder
+        cover_frame = ctk.CTkFrame(
+            content,
+            fg_color=BG,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=4,
+            width=160,
+            height=230
+        )
+        cover_frame.pack(side="left", padx=(0, 14), anchor="n")
         cover_frame.pack_propagate(False)
 
-        img = Image.new("RGB", (140, 200), BG)
-        d = ImageDraw.Draw(img)
-        d.rectangle([6, 6, 134, 194], outline=ACCENT, width=2)
-        d.text((20, 60), "DOM\nCASMURRO", fill=FG)
-        d.text((20, 160), "MACHADO", fill=MUTED)
-        self._cover_img = ImageTk.PhotoImage(img)
-        ctk.CTkLabel(cover_frame, image=self._cover_img, text="").pack(
-            expand=True)
+        self.cover_img = self.criar_placeholder_capa(titulo, autor)
+
+        ctk.CTkLabel(
+            cover_frame,
+            image=self.cover_img,
+            text=""
+        ).pack(expand=True)
 
         info = ctk.CTkFrame(content, fg_color="transparent")
         info.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkLabel(info, text="TÍTULO", text_color=MUTED,
-                     font=("Arial", 9, "bold")).pack(anchor="w")
-        ctk.CTkLabel(info, text=item["titulo"], text_color=FG,
-                     font=("Arial", 22, "bold")).pack(anchor="w")
-        ctk.CTkLabel(info, text=f"{item['autor']} • {item['editora']}",
-                     text_color=MUTED).pack(anchor="w", pady=(0, 12))
+        ctk.CTkLabel(
+            info,
+            text="TÍTULO",
+            text_color=MUTED,
+            font=("Arial", 9, "bold")
+        ).pack(anchor="w")
+
+        self.entry_titulo = ctk.CTkEntry(info, height=38)
+        self.entry_titulo.insert(0, titulo)
+        self.entry_titulo.pack(fill="x", pady=(2, 10))
+
+        ctk.CTkLabel(
+            info,
+            text="AUTOR",
+            text_color=MUTED,
+            font=("Arial", 9, "bold")
+        ).pack(anchor="w")
+
+        self.entry_autor = ctk.CTkEntry(info, height=38)
+        self.entry_autor.insert(0, autor)
+        self.entry_autor.pack(fill="x", pady=(2, 10))
 
         # KPIs
         kpis = ctk.CTkFrame(info, fg_color="transparent")
         kpis.pack(fill="x", pady=(0, 12))
-        self._kpi(kpis, "ESTOQUE", f"{item['estoque']} un", GOOD).pack(
-            side="left", expand=True, fill="x", padx=(0, 4))
-        self._kpi(kpis, "RESERVADO", "2 un", FG).pack(
-            side="left", expand=True, fill="x", padx=4)
-        self._kpi(kpis, "MÍNIMO", "5 un", WARN).pack(
-            side="left", expand=True, fill="x", padx=(4, 0))
 
-        self._field(info, "EAN", item["ean"])
-        self._field(info, "CATEGORIA", item["categoria"])
+        self.criar_kpi(kpis, "ESTOQUE", f"{qtd_estoque} un", GOOD).pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=(0, 4)
+        )
 
-    def _kpi(self, parent, label, value, color):
-        f = ctk.CTkFrame(parent, fg_color=PANEL, border_color=BORDER,
-                         border_width=1, corner_radius=4)
-        ctk.CTkLabel(f, text=label, text_color=MUTED,
-                     font=("Arial", 9, "bold")).pack(anchor="w", padx=8,
-                                                     pady=(6, 0))
-        ctk.CTkLabel(f, text=value, text_color=color,
-                     font=("Consolas", 16, "bold")).pack(anchor="w", padx=8,
-                                                         pady=(0, 6))
-        return f
+        self.criar_kpi(kpis, "PÁGINAS", f"{num_paginas}", FG).pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=4
+        )
 
-    def _field(self, parent, label, value):
-        row = ctk.CTkFrame(parent, fg_color="transparent", height=28)
-        row.pack(fill="x", pady=2)
-        ctk.CTkLabel(row, text=label, text_color=MUTED,
-                     font=("Arial", 10)).pack(side="left")
-        ctk.CTkLabel(row, text=value, text_color=FG,
-                     font=("Consolas", 11)).pack(side="right")
-        ctk.CTkFrame(parent, fg_color=BORDER, height=1).pack(fill="x")
+        self.criar_kpi(kpis, "CATEGORIA", nome_categoria or "Sem categoria", WARN).pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=(4, 0)
+        )
 
-    def _build_right(self, parent):
+        self.criar_label_campo(info, "ISBN")
+        self.entry_isbn = ctk.CTkEntry(info, height=34)
+        self.entry_isbn.insert(0, codigo_isbn)
+        self.entry_isbn.pack(fill="x", pady=(2, 8))
+
+        self.criar_label_campo(info, "DESCRIÇÃO")
+        self.entry_descricao = ctk.CTkTextbox(info, height=120)
+        self.entry_descricao.insert("1.0", descricao or "")
+        self.entry_descricao.pack(fill="x", pady=(2, 8))
+
+        self.imagem_capa = imagem_capa
+
+    def criar_lado_direito(self, parent):
+        (
+            id_livro,
+            codigo_isbn,
+            titulo,
+            descricao,
+            imagem_capa,
+            autor,
+            preco,
+            qtd_estoque,
+            num_paginas,
+            id_categoria,
+            nome_categoria
+        ) = self.livro
+
         right = ctk.CTkFrame(parent, fg_color=BG)
         right.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
-        # Preço
-        price = ctk.CTkFrame(right, fg_color=PANEL, border_color=BORDER,
-                             border_width=1, corner_radius=6)
+        # Painel preço
+        price = ctk.CTkFrame(
+            right,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=6
+        )
         price.pack(fill="x", pady=(0, 8))
 
-        ctk.CTkLabel(price, text="PREÇO DE VENDA", text_color=MUTED,
-                     font=("Arial", 10, "bold")).pack(anchor="w", padx=14,
-                                                      pady=(12, 0))
-        ctk.CTkLabel(price,
-                     text=f"R$ {item['preco']:.2f}".replace(".", ","),
-                     text_color=ACCENT,
-                     font=("Consolas", 32, "bold")).pack(anchor="w", padx=14)
+        ctk.CTkLabel(
+            price,
+            text="PREÇO DE VENDA",
+            text_color=MUTED,
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w", padx=14, pady=(12, 0))
 
-        # Quantidade
-        qrow = ctk.CTkFrame(price, fg_color="transparent")
-        qrow.pack(fill="x", padx=14, pady=10)
-        ctk.CTkLabel(qrow, text="QUANTIDADE", text_color=MUTED,
-                     font=("Arial", 10, "bold")).pack(side="left")
+        self.entry_preco = ctk.CTkEntry(
+            price,
+            height=42,
+            font=("Consolas", 24, "bold")
+        )
+        self.entry_preco.insert(0, f"{preco:.2f}")
+        self.entry_preco.pack(fill="x", padx=14, pady=(6, 12))
 
-        qbox = ctk.CTkFrame(qrow, fg_color=BG, border_color=BORDER,
-                            border_width=1, corner_radius=4)
-        qbox.pack(side="right")
-        ctk.CTkButton(qbox, text="−", width=32, fg_color="transparent",
-                      hover_color=PANEL, text_color=FG,
-                      command=lambda: self._set_qtd(-1)).pack(side="left")
-        self.lbl_qtd = ctk.CTkLabel(qbox, text="1", text_color=FG, width=40,
-                                    font=("Consolas", 14, "bold"))
-        self.lbl_qtd.pack(side="left")
-        ctk.CTkButton(qbox, text="+", width=32, fg_color="transparent",
-                      hover_color=PANEL, text_color=FG,
-                      command=lambda: self._set_qtd(1)).pack(side="left")
+        # Estoque e páginas
+        campos = ctk.CTkFrame(
+            right,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=6
+        )
+        campos.pack(fill="x", pady=(0, 8))
 
-        ctk.CTkFrame(price, fg_color=BORDER, height=1).pack(fill="x", padx=14)
+        ctk.CTkLabel(
+            campos,
+            text="ESTOQUE",
+            text_color=MUTED,
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w", padx=14, pady=(12, 0))
 
-        sub = ctk.CTkFrame(price, fg_color="transparent")
-        sub.pack(fill="x", padx=14, pady=10)
-        ctk.CTkLabel(sub, text="SUBTOTAL", text_color=MUTED,
-                     font=("Arial", 10, "bold")).pack(side="left")
-        self.lbl_subtotal = ctk.CTkLabel(
-            sub, text=self._subtotal_text(), text_color=FG,
-            font=("Consolas", 20, "bold"))
-        self.lbl_subtotal.pack(side="right")
+        self.entry_estoque = ctk.CTkEntry(campos, height=36)
+        self.entry_estoque.insert(0, str(qtd_estoque))
+        self.entry_estoque.pack(fill="x", padx=14, pady=(6, 10))
+
+        ctk.CTkLabel(
+            campos,
+            text="NÚMERO DE PÁGINAS",
+            text_color=MUTED,
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w", padx=14)
+
+        self.entry_paginas = ctk.CTkEntry(campos, height=36)
+        self.entry_paginas.insert(0, str(num_paginas))
+        self.entry_paginas.pack(fill="x", padx=14, pady=(6, 10))
+
+        ctk.CTkLabel(
+            campos,
+            text="CATEGORIA",
+            text_color=MUTED,
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w", padx=14)
+
+        self.combo_categoria = ctk.CTkComboBox(
+            campos,
+            values=list(self.categorias.keys()),
+            height=36
+        )
+        self.combo_categoria.set(nome_categoria or "Romance")
+        self.combo_categoria.pack(fill="x", padx=14, pady=(6, 14))
 
         # Ações
-        actions = ctk.CTkFrame(right, fg_color=PANEL, border_color=BORDER,
-                               border_width=1, corner_radius=6)
+        actions = ctk.CTkFrame(
+            right,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=6
+        )
         actions.pack(fill="x", pady=(0, 8))
 
-        ctk.CTkButton(actions, text="[F4] ADICIONAR À VENDA", height=44,
-                      fg_color=ACCENT, hover_color=ACCENT_HOVER,
-                      text_color="white",
-                      font=("Arial", 12, "bold"),
-                      command=self._adicionar).pack(fill="x", padx=12,
-                                                    pady=(12, 6))
+        ctk.CTkButton(
+            actions,
+            text="[F4] SALVAR ALTERAÇÕES",
+            height=44,
+            fg_color=GOOD,
+            hover_color="#15803d",
+            text_color="white",
+            font=("Arial", 12, "bold"),
+            command=self.salvar_alteracoes
+        ).pack(fill="x", padx=12, pady=(12, 6))
 
-        srow = ctk.CTkFrame(actions, fg_color="transparent")
-        srow.pack(fill="x", padx=12, pady=(0, 12))
-        for text in ("[F6] Reservar", "[F7] Etiqueta", "[ESC] Voltar"):
-            cmd = self._voltar if "Voltar" in text else (
-                lambda t=text: self._msg(t))
-            ctk.CTkButton(srow, text=text, fg_color=BG, hover_color=BORDER,
-                          text_color=FG, border_color=BORDER, border_width=1,
-                          command=cmd).pack(side="left", expand=True,
-                                            fill="x", padx=3)
+        ctk.CTkButton(
+            actions,
+            text="[F3] EXCLUIR LIVRO",
+            height=42,
+            fg_color=DANGER,
+            hover_color=DANGER_HOVER,
+            text_color="white",
+            font=("Arial", 12, "bold"),
+            command=self.excluir_livro
+        ).pack(fill="x", padx=12, pady=(0, 6))
 
-        # Stats
-        stats = ctk.CTkFrame(right, fg_color=PANEL, border_color=BORDER,
-                             border_width=1, corner_radius=6)
+        ctk.CTkButton(
+            actions,
+            text="[ESC] VOLTAR",
+            height=38,
+            fg_color=BG,
+            hover_color=BORDER,
+            text_color=FG,
+            border_color=BORDER,
+            border_width=1,
+            command=self.voltar_consulta
+        ).pack(fill="x", padx=12, pady=(0, 12))
+
+        # Informações extras
+        stats = ctk.CTkFrame(
+            right,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=6
+        )
         stats.pack(fill="x")
-        for label, value, color in (
-            ("Últ. venda", "21/05 • 11:02", MUTED),
-            ("Vendas (30d)", "23 un", MUTED),
-            ("Margem", "+38%", GOOD),
-        ):
-            r = ctk.CTkFrame(stats, fg_color="transparent")
-            r.pack(fill="x", padx=14, pady=3)
-            ctk.CTkLabel(r, text=label, text_color=MUTED,
-                         font=("Consolas", 11)).pack(side="left")
-            ctk.CTkLabel(r, text=value, text_color=color,
-                         font=("Consolas", 11)).pack(side="right")
 
-    # ---------- Footer ----------
-    def _build_footer(self):
-        foot = ctk.CTkFrame(self, fg_color=PANEL, border_color=BORDER,
-                            border_width=1, corner_radius=6, height=34)
-        foot.pack(fill="x", padx=12, pady=(6, 12))
-        for k in ("F1 Ajuda", "F2 Item", "F3 Cliente", "F4 Adicionar",
-                  "F8 Finalizar"):
-            ctk.CTkLabel(foot, text=k, text_color=MUTED,
-                         font=("Consolas", 10)).pack(side="left", padx=10,
-                                                     pady=6)
-        ctk.CTkLabel(foot, text="SCANNER PRONTO", text_color=GOOD,
-                     font=("Consolas", 10, "bold")).pack(side="right", padx=12)
+        self.criar_stat(stats, "Código interno", str(id_livro), MUTED)
+        self.criar_stat(stats, "Imagem", imagem_capa or "Sem capa", MUTED)
+        self.criar_stat(stats, "Status", "Ativo", GOOD)
 
-    # ---------- Lógica ----------
-    def _subtotal_text(self):
-        return f"R$ {item['preco'] * self.qtd:.2f}".replace(".", ",")
+    # ---------- Componentes internos ----------
+    def criar_placeholder_capa(self, titulo, autor):
+        img = Image.new("RGB", (140, 200), BG)
+        d = ImageDraw.Draw(img)
 
-    def _set_qtd(self, delta):
-        self.qtd = max(1, self.qtd + delta)
-        self.lbl_qtd.configure(text=str(self.qtd))
-        self.lbl_subtotal.configure(text=self._subtotal_text())
+        d.rectangle([6, 6, 134, 194], outline=ACCENT, width=2)
 
-    def _adicionar(self):
-        messagebox.showinfo("PDV",
-                            f"{self.qtd}× {item['titulo']} adicionado "
-                            f"({self._subtotal_text()})")
+        titulo_curto = titulo[:18].upper()
+        autor_curto = autor[:15].upper()
 
-    def _voltar(self):
-        if messagebox.askyesno("Voltar", "Sair desta tela?"):
-            self.destroy()
+        d.text((18, 60), titulo_curto, fill=FG)
+        d.text((18, 160), autor_curto, fill=MUTED)
 
-    def _msg(self, t):
-        messagebox.showinfo("PDV", f"Ação: {t}")
+        return ctk.CTkImage(
+            light_image=img,
+            dark_image=img,
+            size=(140, 200)
+        )
 
-    def _bind_shortcuts(self):
-        self.bind("<F4>", lambda e: self._adicionar())
-        self.bind("<F6>", lambda e: self._msg("[F6] Reservar"))
-        self.bind("<F7>", lambda e: self._msg("[F7] Etiqueta"))
-        self.bind("<Escape>", lambda e: self._voltar())
+    def criar_kpi(self, parent, label, value, color):
+        f = ctk.CTkFrame(
+            parent,
+            fg_color=PANEL,
+            border_color=BORDER,
+            border_width=1,
+            corner_radius=4
+        )
 
+        ctk.CTkLabel(
+            f,
+            text=label,
+            text_color=MUTED,
+            font=("Arial", 9, "bold")
+        ).pack(anchor="w", padx=8, pady=(6, 0))
 
-if __name__ == "__main__":
-    PdvApp().mainloop()
+        ctk.CTkLabel(
+            f,
+            text=value,
+            text_color=color,
+            font=("Consolas", 14, "bold")
+        ).pack(anchor="w", padx=8, pady=(0, 6))
+
+        return f
+
+    def criar_label_campo(self, parent, texto):
+        ctk.CTkLabel(
+            parent,
+            text=texto,
+            text_color=MUTED,
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w", pady=(4, 0))
+
+    def criar_stat(self, parent, label, value, color):
+        r = ctk.CTkFrame(parent, fg_color="transparent")
+        r.pack(fill="x", padx=14, pady=5)
+
+        ctk.CTkLabel(
+            r,
+            text=label,
+            text_color=MUTED,
+            font=("Consolas", 11)
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            r,
+            text=value,
+            text_color=color,
+            font=("Consolas", 11)
+        ).pack(side="right")
+
+    # ---------- Ações ----------
+    def salvar_alteracoes(self):
+        isbn = self.entry_isbn.get().strip()
+        titulo = self.entry_titulo.get().strip()
+        autor = self.entry_autor.get().strip()
+        descricao = self.entry_descricao.get("1.0", "end").strip()
+        categoria_nome = self.combo_categoria.get()
+
+        try:
+            preco = float(self.entry_preco.get().replace(",", "."))
+            estoque = int(self.entry_estoque.get())
+            paginas = int(self.entry_paginas.get())
+        except ValueError:
+            messagebox.showerror(
+                "Erro",
+                "Preço, estoque e páginas precisam ser valores válidos."
+            )
+            return
+
+        if isbn == "" or titulo == "" or autor == "":
+            messagebox.showerror(
+                "Erro",
+                "ISBN, título e autor são obrigatórios."
+            )
+            return
+
+        if preco <= 0:
+            messagebox.showerror("Erro", "O preço precisa ser maior que zero.")
+            return
+
+        if estoque < 0:
+            messagebox.showerror("Erro", "O estoque não pode ser negativo.")
+            return
+
+        if paginas <= 0:
+            messagebox.showerror("Erro", "O número de páginas precisa ser maior que zero.")
+            return
+
+        id_categoria = self.categorias.get(categoria_nome)
+
+        try:
+            sucesso = atualizar_livro(
+                id_livro=self.id_livro,
+                codigo_isbn=isbn,
+                titulo=titulo,
+                descricao=descricao,
+                imagem_capa=self.imagem_capa,
+                autor=autor,
+                preco=preco,
+                qtd_estoque=estoque,
+                num_paginas=paginas,
+                id_categoria=id_categoria
+            )
+
+            if sucesso:
+                messagebox.showinfo("Sucesso", "Livro atualizado com sucesso!")
+                self.livro = buscar_livro_por_id(self.id_livro)
+            else:
+                messagebox.showwarning("Aviso", "Nenhuma alteração foi feita.")
+
+        except Exception as erro:
+            messagebox.showerror(
+                "Erro ao atualizar",
+                f"Não foi possível atualizar o livro.\n\nDetalhe: {erro}"
+            )
+
+    def excluir_livro(self):
+        confirmar = messagebox.askyesno(
+            "Excluir livro",
+            "Tem certeza que deseja excluir este livro?\n\nEssa ação não pode ser desfeita."
+        )
+
+        if not confirmar:
+            return
+
+        try:
+            sucesso = deletar_livro(self.id_livro)
+
+            if sucesso:
+                messagebox.showinfo("Sucesso", "Livro excluído com sucesso!")
+                self.voltar_consulta()
+            else:
+                messagebox.showwarning("Aviso", "Livro não encontrado para exclusão.")
+
+        except Exception as erro:
+            messagebox.showerror(
+                "Erro ao excluir",
+                "Não foi possível excluir o livro.\n\n"
+                "Talvez ele já esteja vinculado a uma venda.\n\n"
+                f"Detalhe: {erro}"
+            )
+
+    def voltar_consulta(self):
+        self.parent.voltar_tela()
